@@ -1,0 +1,234 @@
+{
+  "EDITOR_STATE": {
+    "allProjectFiles": {
+      "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9": {
+        "id": "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9",
+        "parent": null,
+        "name": "text-analysis-via-sns-post-processing",
+        "type": "DIRECTORY",
+        "isDirectory": true,
+        "children": [
+          "e531396c-ccdd-47f8-8163-4da8748275b2",
+          "dac19efb-6597-4bf8-b271-585136011559",
+          "2cb07a6c-61f9-4e49-9fa5-eaccde0209f5"
+        ],
+        "isRemovable": false,
+        "filePath": "text-analysis-via-sns-post-processing"
+      },
+      "e531396c-ccdd-47f8-8163-4da8748275b2": {
+        "id": "e531396c-ccdd-47f8-8163-4da8748275b2",
+        "parent": "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9",
+        "name": "addNote.js",
+        "type": "LAMBDA_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "text-analysis-via-sns-post-processing/addNote.js",
+        "code": "'use strict';\n\nconst AWS = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies\nconst config = require('./config.js');\n\nconst sns = new AWS.SNS();\n\nmodule.exports.addNote = (event, context, callback) => {\n  const data = JSON.parse(event.body);\n  if (typeof data.note !== 'string') {\n    console.error('Validation Failed');\n    callback(null, {\n      statusCode: 400,\n      headers: { 'Content-Type': 'text/plain' },\n      body: 'Couldn\\'t add the note.',\n    });\n    return;\n  }\n\n  const params = {\n    Message: data.note,\n    TopicArn: `arn:aws:sns:us-east-1:${config.awsAccountId}:analyzeNote`,\n  };\n\n  sns.publish(params, (error) => {\n    if (error) {\n      console.error(error);\n      callback(null, {\n        statusCode: 501,\n        headers: { 'Content-Type': 'text/plain' },\n        body: 'Couldn\\'t add the note due an internal error. Please try again later.',\n      });\n    }\n    // create a resonse\n    const response = {\n      statusCode: 200,\n      body: JSON.stringify({ message: 'Successfully added the note.' }),\n    };\n    callback(null, response);\n  });\n};\n",
+        "triggers": [
+          {
+            "resourceName": "apigusEast1addNotenotespost",
+            "config": {}
+          }
+        ],
+        "config": {
+          "runtime": "nodejs8.10",
+          "handler": "addNote",
+          "timeout": 60,
+          "memory": 128,
+          "layers": []
+        },
+        "customSecurityPolicy": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "sns:*"
+              ]
+            }
+          ]
+        },
+        "testCases": {
+          "9633a4f0-18b8-4ead-b52d-1a52b5512479": {
+            "id": "9633a4f0-18b8-4ead-b52d-1a52b5512479",
+            "name": "Unnamed event",
+            "functionId": "e531396c-ccdd-47f8-8163-4da8748275b2",
+            "event": "{\n    \"key1\": \"value1\",\n    \"key2\": \"value2\",\n    \"key3\": \"value3\"\n}"
+          }
+        }
+      },
+      "dac19efb-6597-4bf8-b271-585136011559": {
+        "id": "dac19efb-6597-4bf8-b271-585136011559",
+        "parent": "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9",
+        "name": "analyzeNote.js",
+        "type": "LAMBDA_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "text-analysis-via-sns-post-processing/analyzeNote.js",
+        "code": "'use strict';\n\nconst sentiment = require('sentiment');\n\nmodule.exports.analyzeNote = (event) => {\n  const note = event.Records[0].Sns.Message;\n  const result = sentiment(note);\n  if (result.score > 2) {\n    console.log(`Positive note - will be published: ${note}`);\n  } else {\n    console.log(`Negative note - won't be published: ${note}`);\n  }\n};\n",
+        "triggers": [
+          {
+            "resourceName": "snsusEast1analyzeNote",
+            "config": {}
+          }
+        ],
+        "config": {
+          "runtime": "nodejs8.10",
+          "handler": "analyzeNote",
+          "timeout": 60,
+          "memory": 128,
+          "layers": []
+        },
+        "customSecurityPolicy": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "sns:*"
+              ]
+            }
+          ]
+        }
+      },
+      "a93adc0d-e636-4f2b-9671-caf829056427": {
+        "id": "a93adc0d-e636-4f2b-9671-caf829056427",
+        "parent": null,
+        "name": "serverless.yml",
+        "type": "YAML_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "serverless.yml",
+        "code": "service: text-analysis-via-sns-post-processing\n\nframeworkVersion: \">=1.1.0 <2.0.0\"\n\nprovider:\n  name: aws\n  runtime: nodejs8.10\n  region: us-east-1\n  stage: dev\n  iamRoleStatements:\n    - Effect: \"Allow\"\n      Resource: \"*\"\n      Action:\n        - \"sns:*\"\n\nfunctions:\n  addNote:\n    handler: addNote.addNote\n    events:\n      - http:\n          path: notes\n          method: post\n          cors: true\n\n  analyzeNote:\n    handler: analyzeNote.analyzeNote\n    events:\n      - sns: analyzeNote\n"
+      },
+      "17b95ae2-7254-41a8-af5c-8c18259f5f22": {
+        "id": "17b95ae2-7254-41a8-af5c-8c18259f5f22",
+        "parent": null,
+        "name": ".gitignore",
+        "type": "JS_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": ".gitignore",
+        "code": "node_modules\n.serverless\n",
+        "triggers": []
+      },
+      "4b790df0-cf38-4623-b6fd-d1fbd68b2ffa": {
+        "id": "4b790df0-cf38-4623-b6fd-d1fbd68b2ffa",
+        "parent": null,
+        "name": "README.md",
+        "type": "MARKDOWN_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "README.md",
+        "code": "<!--\ntitle: 'AWS Data Processing example in NodeJS'\ndescription: 'This example demonstrates how to setup a simple data processing pipeline.'\nlayout: Doc\nframework: v1\nplatform: AWS\nlanguage: nodeJS\nauthorLink: 'https://github.com/adambrgmn'\nauthorName: 'Adam Bergman'\nauthorAvatar: 'https://avatars1.githubusercontent.com/u/13746650?v=4&s=140'\n-->\n# Data processing\n\nThis example demonstrates how to setup a simple data processing pipeline. The service exposes one HTTP endpoint that allows you to add a text note. This HTTP endpoint returns instantly to provide a good user experience while the actual analysis is deferred. Only messages above a certain sentiment level are actually saved.\n\nInstead of invoking another Lambda function directly it's considered best practice to store the note as a message in a SNS queue. The queue has certain benefits compared to invoking the `analyzeNote` function directly. The queue supports retries in case the analyzeNote function fails as well as back-off to avoid too many concurrent invocations.\n\n## Setup\n\n```bash\nnpm install\n```\n\nIn order to use SNS you need to add your AWS account ID to config.js. There is already a placeholder: `XXXXXXXXXXXX`.\n\nYou can retrieve the your account ID by running this command (you need the AWS SDK installed)\n\n```bash\naws sts get-caller-identity --output text --query Account\n```\n\n# Explanation\n\n- sns topic will be added by default\n\n## Deploy\n\nIn order to deploy the you endpoint simply run\n\n```bash\nserverless deploy\n```\n\nThe expected result should be similar to:\n\n```bash\nServerless: Packaging serviceâ¦\nServerless: Uploading CloudFormation file to S3â¦\nServerless: Uploading service .zip file to S3â¦\nServerless: Updating Stackâ¦\nServerless: Checking Stack update progressâ¦\n............\nServerless: Stack update finishedâ¦\nServerless: Removing old service versionsâ¦\n\nService Information\nservice: text-analysis-via-post-processing\nstage: dev\nregion: us-east-1\napi keys:\n  None\nendpoints:\n  POST - https://5cvfn0wwv7.execute-api.us-east-1.amazonaws.com/dev/notes\nfunctions:\n  text-analysis-via-post-processing-dev-analyzeNote: arn:aws:lambda:us-east-1:377024778620:function:text-analysis-via-post-processing-dev-analyzeNote\n  text-analysis-via-post-processing-dev-addNote: arn:aws:lambda:us-east-1:377024778620:function:text-analysis-via-post-processing-dev-addNote\n```\n\n## Usage\n\nIn order to add a note run\n\n```bash\ncurl -X POST https://XXXXXXXXX.execute-api.us-east-1.amazonaws.com/dev/notes --data '{ \"note\": \"This is such a great Day\" }'\n```\n\nYou should see the following output\n\n```bash\n{\"message\":\"Successfully added the note.\"}%\n```\n\nTo verify that the note has been processed run\n\n```bash\nserverless logs --function analyzeNote\n```\n\nThis command will show you the logged output and looks liked this\n\n```bash\nSTART RequestId: 75a970ba-ab11e6-809d-435833490828 Version: $LATEST\n2015 17:56:32.497 (+01:00)\t75a970ba-ab11e6-809d-435833490828\tPositive note - will be published: This is such a great Day\nEND RequestId: 75a970ba-ab11e6-809d-435833490828\nREPORT RequestId: 75a970ba-ab11e6-809d-435833490828\tDuration: 3.45 ms\tBilled Duration: 100 ms \tMemory Size: 1024 MB\tMax Memory Used: 15 MB\n```\n\nYou can play with the system and see which notes will be published and which won't.\n\n# Scaling\n\nTODO\n"
+      },
+      "7ed607bb-97e3-4bc4-acca-2310d9f4448b": {
+        "id": "7ed607bb-97e3-4bc4-acca-2310d9f4448b",
+        "parent": null,
+        "name": "package.json",
+        "type": "JSON_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "package.json",
+        "code": "{\n  \"name\": \"aws-text-analysis-via-sns-post-processing\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Example demonstrates how to setup a simple data processing pipeline\",\n  \"author\": \"\",\n  \"license\": \"MIT\",\n  \"dependencies\": {\n    \"sentiment\": \"^2.1.0\"\n  }\n}\n"
+      },
+      "2cb07a6c-61f9-4e49-9fa5-eaccde0209f5": {
+        "id": "2cb07a6c-61f9-4e49-9fa5-eaccde0209f5",
+        "parent": "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9",
+        "name": "config.js",
+        "type": "JS_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "text-analysis-via-sns-post-processing/config.js",
+        "code": "'use strict';\n\nmodule.exports = {\n  awsAccountId: 'XXXXXXXXXXXX',\n};\n",
+        "triggers": []
+      }
+    },
+    "deletedFiles": [],
+    "rootNode": "eb588d05-d29e-4b3d-af1b-c5fa271ef9f9",
+    "openFiles": [
+      "e531396c-ccdd-47f8-8163-4da8748275b2",
+      "7ed607bb-97e3-4bc4-acca-2310d9f4448b",
+      "a93adc0d-e636-4f2b-9671-caf829056427"
+    ],
+    "currentFileId": "e531396c-ccdd-47f8-8163-4da8748275b2",
+    "resources": {
+      "apigusEast1addNotenotespost": {
+        "type": "API_GATEWAY",
+        "name": "apigusEast1addNotenotespost",
+        "config": {
+          "selectedRegion": "us-east-1",
+          "apiName": "addNote",
+          "apiMode": 0,
+          "endpointType": "EDGE",
+          "resourceMode": 0,
+          "resourcePath": "notes",
+          "resourceName": "notes",
+          "restMethod": "POST",
+          "proxyIntegration": true,
+          "enableCORS": true,
+          "stageMode": 0,
+          "stageName": "dev"
+        }
+      },
+      "snsusEast1analyzeNote": {
+        "type": "SNS",
+        "name": "snsusEast1analyzeNote",
+        "config": {
+          "snsType": 0,
+          "topicMode": 0,
+          "topicArn": "arn:aws:sns:us-east-1:318300609668:analyzeNote",
+          "topicName": "analyzeNote",
+          "topicDisplayName": "analyzeNote",
+          "topicRegion": "us-east-1",
+          "subscriptions": []
+        }
+      }
+    },
+    "customTemplate": {
+      "dialect": "CloudFormation",
+      "definitions": {}
+    },
+    "envVariables": [
+      {
+        "lambdaId": "all",
+        "varKey": "SIGMA_AWS_ACC_ID",
+        "varValue": null,
+        "shouldPersist": false,
+        "displayOnly": false,
+        "editable": false
+      }
+    ],
+    "packageJSON": {
+      "dependencies": {
+        "sentiment": {
+          "name": "sentiment",
+          "version": "^2.1.0"
+        }
+      }
+    }
+  },
+  "PROJECT_META": {
+    "projectName": "aws-text-analysis-via-sns-post-processing",
+    "projectDescription": "Example demonstrates how to setup a simple data processing pipeline",
+    "projectVersion": "1.0.0",
+    "projectRegion": "us-east-1",
+    "platform": "AWS",
+    "platformRegions": {},
+    "lastSave": 1552391289809
+  },
+  "VCS_STATE": {
+    "provider": "GitHub",
+    "repo": {
+      "name": "examples",
+      "url": "https://github.com/Kumudikatest/serverless1"
+    }
+  }
+}
